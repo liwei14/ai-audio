@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>李炜的音频助手 (v0.1)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <button id="btnLang" class="lang-toggle" type="button">EN</button>
+    <h1 data-i18n="title">李炜的音频助手 (v0.1)</h1>
+    <p class="subtitle" data-i18n="subtitle">实时麦克风 / 文件 / 长音频会议，统统搞定</p>
+  </header>
+
+  <main>
+    <nav class="tabs">
+      <button class="tab active" data-mode="realtime" data-i18n="tab_rt">① 多语言实时麦克风</button>
+      <button class="tab" data-mode="file" data-i18n="tab_file">② 上传短音频</button>
+      <button class="tab" data-mode="long" data-i18n="tab_long">③ 长音频 / 多说话人</button>
+    </nav>
+
+    <!-- ───────── 模式 ①：实时麦克风 ───────── -->
+    <section class="panel active" id="panel-realtime">
+      <p class="desc" data-i18n-html="desc_rt"></p>
+      <label data-i18n="label_speak_lang">主要语言</label>
+      <select id="rtLang" class="lang-select"></select>
+
+      <label data-i18n="label_silence_ms">句子停顿判定（毫秒）</label>
+      <div class="rt-silence-wrap">
+        <input id="rtSilenceMs" type="range" min="200" max="1500" step="50" value="400" />
+        <span class="rt-silence-val"><span id="rtSilenceMsVal">400</span> ms</span>
+      </div>
+      <p class="desc small" data-i18n="rt_silence_hint">停顿超过这个时长就视作一句话结束，开始流式吐字。值越小越接近"边说边出"，但太小容易把一句话切成两段。建议 300–600ms。</p>
+
+      <div class="rt-controls">
+        <button id="btnRtStart" class="primary" data-i18n="btn_rt_start">开始录音</button>
+        <button id="btnRtStop" class="danger" disabled data-i18n="btn_rt_stop">停止</button>
+        <span id="rtStatus" class="status">idle</span>
+      </div>
+    </section>
+
+    <!-- ───────── 模式 ②：短音频文件 ───────── -->
+    <section class="panel" id="panel-file">
+      <p class="desc" data-i18n-html="desc_file"></p>
+      <label data-i18n="label_choose_file">选择音频文件</label>
+      <input id="fileInput" type="file" accept="audio/*" />
+      <label data-i18n="label_audio_lang">音频语言</label>
+      <select id="fileLang" class="lang-select"></select>
+      <button id="btnFile" class="primary" data-i18n="btn_transcribe">开始转录</button>
+    </section>
+
+    <!-- ───────── 模式 ③：长音频 / 多说话人 ───────── -->
+    <section class="panel" id="panel-long">
+      <p class="desc" data-i18n-html="desc_long"></p>
+      <label data-i18n="label_choose_file">选择音频文件</label>
+      <input id="longFile" type="file" accept="audio/*" />
+      <label data-i18n="label_audio_lang">音频语言</label>
+      <select id="longLang" class="lang-select"></select>
+      <button id="btnLong" class="primary" data-i18n="btn_transcribe">开始转录</button>
+      <p class="hint" id="longHint"></p>
+    </section>
+
+    <!-- ───────── 可选：自动翻译 / 总结 ───────── -->
+    <section class="addon">
+      <label class="addon-toggle">
+        <input type="checkbox" id="aiEnable" />
+        <span data-i18n="addon_toggle">转录完成后，自动用 AI 处理一遍</span>
+      </label>
+      <p class="desc small" data-i18n="addon_desc">
+        勾选后，转录结果会被送进大模型，再得到一个二次产物（翻译 / 纪要 / 自定义任务）。实时模式下，每一句定稿后会立即处理。
+      </p>
+      <div class="addon-body" id="aiPanel" hidden>
+        <label data-i18n="addon_label_mode">处理方式</label>
+        <select id="aiMode">
+          <option value="translate-en" data-i18n="addon_mode_translate_en">翻译为英文</option>
+          <option value="translate-zh" data-i18n="addon_mode_translate_zh">翻译为中文</option>
+          <option value="summary" data-i18n="addon_mode_summary">提取要点 / 会议纪要</option>
+          <option value="custom" data-i18n="addon_mode_custom">自定义指令</option>
+        </select>
+        <div id="aiCustomWrap" hidden>
+          <label data-i18n="addon_label_custom">自定义指令（系统提示词）</label>
+          <input id="aiCustom" type="text" data-i18n-placeholder="addon_custom_placeholder" placeholder="例：把下面的内容改写成正式邮件" />
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────── 输出区 ───────── -->
+    <section class="output">
+      <div class="output-head">
+        <h2 data-i18n="output_result">转录结果</h2>
+        <button id="btnCopy" class="link-btn" data-i18n="btn_copy">复制</button>
+      </div>
+      <div id="result" class="result"></div>
+
+      <div id="aiResultWrap" hidden>
+        <div class="output-head">
+          <h2 id="aiResultTitle" data-i18n="output_ai">AI 处理结果</h2>
+          <button id="btnCopyAi" class="link-btn" data-i18n="btn_copy">复制</button>
+        </div>
+        <div id="aiResult" class="result ai-result"></div>
+      </div>
+    </section>
+
+    <!-- ───────── 历史记录 ───────── -->
+    <section class="history">
+      <div class="output-head">
+        <h2 data-i18n="history_title">历史任务</h2>
+        <button id="btnClearHistory" class="link-btn danger-link" data-i18n="history_clear">清空</button>
+      </div>
+      <p class="desc small" data-i18n="history_desc">最近的转录任务会自动保存在你浏览器本地。点击任意一条可查看完整内容。</p>
+      <ul id="historyList" class="history-list"></ul>
+    </section>
+  </main>
+
+  <footer class="page-footer">Built by Hugo via Cursor (2026)</footer>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
